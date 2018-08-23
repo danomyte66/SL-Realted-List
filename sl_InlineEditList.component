@@ -1,0 +1,138 @@
+<!--
+Visualforce Component: SL_InlineEditList
+Crated by: Dane Kim
+On: 5/3/2018
+Purpose: 
+-This component generates an inline editable related list for any child object to be used on the parent's detail page. 
+-->
+
+<apex:component controller="SL_ctrl_InlineEditList"  allowDML="true" id="inlineEditComponent">
+    
+    <!-- This component uses jQuery and datatables (https://datatables.net/) -->
+    <apex:includeScript value="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js" />  
+    <apex:includeScript value="{!URLFOR($Resource.datatables, 'datatables.min.js')}"/>    
+    <apex:stylesheet value="{!URLFOR($Resource.datatables, 'datatables.min.css')}"/>
+    
+    <style type="text/css">
+    #dkPbTable {
+        display: none;
+    }
+    .dataTables_wrapper 
+    .dataTables_length{
+        margin-bottom: 1em;  
+    }
+    .pbBody a {
+        color: #015ba7;  
+    }
+    </style>
+
+    <!--Attributes-->
+    <apex:attribute name="aParentId" description="Parent Record Id" type="String" required="true" assignTo="{!parentId}" />
+    <apex:attribute name="someColumnNames" description="A list of fields to show" type="String" assignTo="{!columnNames}" />
+    <apex:attribute name="listName" description="Name of the related list" type="String" />
+    <apex:attribute name="aQueryParams" description="Query parameters of the objects that will show in the list" type="String" assignTo="{!queryParams}" />
+    <apex:attribute name="object" description="Name of object in the list" type="String" assignTo="{!sObjectType}"/>
+    <apex:attribute name="rtName" description="RecordType Name for new records created from the component" type="String" assignTo="{!recordTypeName}"/>
+    <apex:attribute name="rtId" description="RecordTypeId for new records created from the component" type="String"/>
+    <apex:attribute name="objKeyPrefix" description="prefix of object" type="string"/>
+    <apex:attribute name="aParentName" description="name of the parent that needs to be populated for new children" type="string" assignTo="{!parentName}"/>
+    <apex:attribute name="aParentFieldId" description="Id of the parent lookup field that needs to be populated" type="string" assignTo="{!parentLookupFieldId}" />
+    <!---->
+    		<apex:outputPanel styleClass="listPageBlock">
+            <apex:pageBlock title="{!listName}" id="relatedListPageBlock" rendered="true">
+            
+                <apex:pageBlockButtons location="top" >
+                    <apex:commandButton id="saveButton" styleClass="toggleable" value="Save" onclick="callSave()" rerender="dkPbTable" oncomplete="applyDataTable()"/>
+                    <apex:actionFunction action="{!doSave}" name="saveAction" rerender=""/>
+                    <apex:commandButton value="Cancel" styleClass="toggleable" rerender="dkPbTable" onclick="hideTable()" oncomplete="applyDataTable()"/>
+                    <!-- the New button uses URL hacking. Requires Field Id of the object's lookup field if we want to pre-populate lookup fields for new records-->
+                    <apex:commandButton value="New" onclick="newRecordWindow('/{!objectPrefix}/e?RecordType={!recordTypeId}
+                                                             &CF{!parentLookupFieldId}_lkid={!parentId}
+                                                             &CF{!parentLookupFieldId}={!parentName}
+                                                             &retURL=%2F{!parentId}')"
+                                                            rerender="dkPbTable" oncomplete="applyDataTable()"/>
+                </apex:pageBlockButtons>
+                <!--related list table-->
+                <apex:outputPanel id="dkPbTable">
+                    <apex:pageBlockTable id="relatedTable" value="{!listObjects}" var="obj" styleclass="DataTable">
+                        <!--variable to iterate through the wrapped objects-->
+                        <apex:variable var="rowCount" value="{!0}"/>
+                        <!--first column for delete/edit-->
+                        <apex:column >
+                            <apex:facet name="header">Action</apex:facet>
+                            <apex:outputLink value="/{!obj.Id}/e?retURL=%2F{!parentId}" target="_blank">Edit</apex:outputLink>
+                            &nbsp;|&nbsp;
+                            <apex:commandLink action="{!doDelete}" immediate="true" value="Del" rerender="dkPbTable" onclick="hideTable()" oncomplete="applyDataTable()">
+                                <apex:param assignTo="{!actionRow}" name="actionRow" value="{!rowCount}"/>
+                            </apex:commandLink>
+                            <apex:variable var="rowCount" value="{!rowCount+1}"/>
+                        </apex:column>
+                        <!--remaining columns iterated as list to build the table-->
+                        <apex:repeat value="{!wrappedColumns}" var="wrappedCol">
+                            <apex:column >
+                            <apex:facet name="header">{!wrappedCol.FieldLabel}</apex:facet>
+                            <apex:outputField value="{!obj[wrappedCol.FieldName]}">
+                            	<apex:inlineEditSupport disabled="false" event="ondblClick" showOnEdit="saveButton,cancelButton" hideOnEdit="editButton" />
+                            </apex:outputField>
+                            </apex:column>
+                        </apex:repeat>
+                    </apex:pageBlockTable>
+                </apex:outputPanel>
+                
+            </apex:pageBlock> 
+            </apex:outputPanel>    
+		    <input type="button" style="display:none" id="dummyButton"/>
+    <!--this is to avoid clashes if jQuery is already being used -->
+    <script type="text/javascript">jQuery.noConflict();</script>
+    <script type="text/javascript"> 
+        jQuery("[id$='dkPbTable']").load(applyDataTable());
+        jQuery(".listPageBlock").load(observerStart());
+		jQuery(".toggleable").prop('disabled',true);
+        //Initialize datatable
+        function applyDataTable(){
+            
+            jQuery("[id$='relatedTable']").DataTable({
+                "lengthMenu": [[5,10, 25, -1], [5,10, 25, "All"]]
+            });
+            jQuery("[id$='dkPbTable']").show();
+            
+        } 
+        //hide table to avoid flashing of unstyled table prior to datatable being fully initialized
+        function hideTable(){
+            jQuery("[id$='dkPbTable']").hide();
+        }
+        
+        function newRecordWindow(url){ 
+            hideTable();
+            window.open(url,'_blank').focus();
+        }
+    
+     
+        function callSave() {
+            document.getElementById('dummyButton').click();
+            saveAction();
+            hideTable();
+        }
+    
+   		function observerStart(){
+            var observer = new MutationObserver(
+                function(mutationList){
+                    if(jQuery(".inlineEditModified").length != 0){
+                        observer.disconnect();
+                        jQuery(".toggleable").prop('disabled',false);
+                        observer.observe(jQuery(".listPageBlock").get(0),{attributes: true, childList: false, subtree: true});
+                    }
+                    else{
+                        observer.disconnect();
+                        jQuery(".toggleable").prop('disabled',true);
+                        observer.observe(jQuery(".listPageBlock").get(0),{attributes: true, childList: false, subtree: true});
+                    }
+                }
+        	)
+    		observer.observe(jQuery(".listPageBlock").get(0),{attributes: true, childList: false, subtree: true});
+		}
+
+            
+
+    </script>
+</apex:component>

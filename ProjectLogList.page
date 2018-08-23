@@ -1,0 +1,78 @@
+<!--
+Visualforce Component: ProjectLogList.vfp
+Crated by: Dane Kim
+On: 5/3/2018
+Purpose: Provides a tabbed set of related lists for the Project_Log__c component to be shown, with a record type assigned to each tab.
+-->
+
+<apex:page standardController="pse__Proj__c" extensions="SL_ctrl_ProjectLogList">
+    <apex:tabPanel switchType="client" selectedTab="issues" id="theTabPanel">
+        <apex:tab label="Issues" name="issues" id="tabIssues" ontabenter="enableTab(1)">
+            <apex:outputPanel id="IssuePanel">
+			<apex:form >
+                	<apex:dynamicComponent id="issuesListComponent" componentValue="{!IssuesList}"/>
+                    <apex:actionFunction name="tab1" action="{!switchTabs}" rerender="ActionItemPanel,RiskPanel,decisionPanel,IssuePanel">
+                    	<apex:param name="tab1Param" assignTo="{!currentTab}" value="tab1"/>
+                	</apex:actionFunction>
+            </apex:form>
+            </apex:outputPanel>    
+		</apex:tab>
+        <apex:tab label="Risks" name="risks" id="risks" ontabenter="enableTab(2)">    
+            <apex:outputPanel id="RiskPanel">
+ 			<apex:form >
+                	<apex:dynamicComponent id="riskListComponent" componentValue="{!RiskList}"/>
+                    <apex:actionFunction name="tab2" action="{!switchTabs}" rerender="ActionItemPanel,IssuePanel,decisionPanel,RiskPanel">
+                    	<apex:param name="tab2Param" assignTo="{!currentTab}" value="tab2"/>
+                	</apex:actionFunction>        
+            </apex:form>
+            </apex:outputPanel>
+		</apex:tab>
+        <apex:tab label="Action Items" name="actionitemsListComponent" id="tabActionItems"  ontabenter="enableTab(3)">    
+            <apex:outputPanel id="ActionItemPanel">
+ 			<apex:form >
+                	<apex:dynamicComponent id="actionItemComponent" componentValue="{!ActionItemList}"/>
+                    <apex:actionFunction name="tab3" action="{!switchTabs}" rerender="RiskPanel,IssuePanel,decisionPanel,ActionItemPanel">
+                    	<apex:param name="tab3Param" assignTo="{!currentTab}" value="tab3"/>
+                	</apex:actionFunction>        
+            </apex:form>
+            </apex:outputPanel>
+		</apex:tab>
+        <apex:tab label="Decisions" name="decisionListComponent" id="tabDecisions"  ontabenter="enableTab(4)">    
+            <apex:outputPanel id="decisionPanel">
+ 			<apex:form >
+                	<apex:dynamicComponent id="decisionComponent" componentValue="{!DecisionList}"/>
+                    <apex:actionFunction name="tab4" action="{!switchTabs}" rerender="RiskPanel,IssuePanel,ActionItemPanel,decisionPanel">
+                    	<apex:param name="tab4Param" assignTo="{!currentTab}" value="tab4"/>
+                	</apex:actionFunction>        
+            </apex:form>
+            </apex:outputPanel>
+		</apex:tab>
+    </apex:tabPanel>
+    
+    
+    <script type="text/javascript"> 
+        var currentTab = 1;
+         function enableTab(tabNum){
+            if(currentTab != tabNum){
+                switch(tabNum){
+                        case 1: 
+                            currentTab = tabNum;
+                            tab1();
+                            break;
+                        case 2: 
+                            currentTab = tabNum;
+                            tab2();
+                            break;
+                        case 3:
+                            currentTab = tabNum;
+                            tab3();
+                            break;
+                        case 4:
+                            currentTab = tabNum;
+                            tab4();
+                            break    
+                }
+            }
+         }    
+    </script>
+</apex:page>
